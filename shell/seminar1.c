@@ -1,6 +1,11 @@
 //Twin Shell
+/*COMPILE WITH:
+gcc -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -Wall -Wextra -std=gnu11 \
+  seminar1.c -lreadline -lhistory -ltinfo -lpcap -o twinterminal
+*/
 #include "twin.h"
 #include "sniff.h"
+#include "morsecode.h"
 
 /*
 WHAT IS A TOKENIZER?
@@ -29,12 +34,6 @@ char    *readLine(void)
     char    cwd[BUFSIZ];    //size of buffer used by setbuf
     buf = NULL;
 
-    //prompt the user to input a command
-    Getcwd(cwd,  sizeof(cwd));
-    printf(C"\U0001F46F %s \U0001F46F "RST, cwd); 
-    printf("twin>> ");
-    fflush(stdout);
-
     //if error
     if (getline(&buf, &bufSize, stdin) == -1)   //stdin = stream
     {
@@ -52,74 +51,123 @@ int main(int argc, char** argv) //argc = arg. counter, argv = arg. vector
 {
     printbanner();
     char    *line;
-    //get command line
 
-    while((line = readLine()))
-    {        
+    #ifdef TWIN_HAVE_READLINE
+    twin_history_init();
+#endif
+
+    for (;;) {
+        char *line = NULL;
+
+#ifdef TWIN_HAVE_READLINE
+        char prompt[256];
+        twin_build_prompt(prompt, sizeof(prompt));
+        line = twin_readline(prompt);       // malloc'd; NULL on EOF
+#else
+        line = readLine();                   // your getline() fallback
+#endif
+        if (!line) break;
+
         printf(">> %s\n", line);
 
-        //tokenize input
+        /* If the command line contains a pipeline, delegate to /bin/sh */
+        if (strchr(line, '|')) {
+            pid_t pid = fork();
+            if (pid == 0) {
+                execl("/bin/sh", "sh", "-c", line, (char *)NULL);
+                perror(RED "exec sh -c" RST);
+                _exit(127);
+            } else if (pid < 0) {
+                perror(RED "fork" RST);
+            } else {
+                int st = 0;
+                if (waitpid(pid, &st, 0) == -1)
+                    perror(RED "waitpid" RST);
+            }
+        free(line);
+        continue;
+        }
+
+        // tokenize
         char *args[128];
         int n = split_args(line, args, 128);
         if (n == 0) { free(line); continue; }
 
-        //Extra commands
-        //help
-        if (strcmp(args[0], "help") == 0) 
-        {
-            printf(G    "Twin Shell 'help'" RST "\n"
-                        "  - Custom Commands:\n"
-                        "      help   : Show help menu\n"
-                        "      launch : Launchpad\n"
-                        "      exit   : Quit the shell\n"
-                        "      close  : Alias for exit\n"
-                        "      sniff <iface> [count] [bpf] : capture packets until ctrl+c is pressed\n");
+        // built-ins
+        if (strcmp(args[0], "help") == 0) {
+            printf(G "Twin Shell 'help'" RST "\n"
+                   "  - Custom Commands:\n"
+                   "      help   : Show help menu\n"
+                   "      launch : Launchpad\n"
+                   "      exit   : Quit the shell\n"
+                   "      close  : Alias for exit\n"
+                   "      sniff <iface> [count] [bpf] : Capture packets\n"
+                   "      morse  : Translate to Morse Code\n"
+                   "      morse -d : Decode from Morse Code\n");
             free(line);
             continue;
         }
-        //exit
-        if (strcmp(args[0], "exit") == 0 || strcmp(args[0], "close") == 0) 
-        {
+
+        if (strcmp(args[0], "exit") == 0 || strcmp(args[0], "close") == 0) {
             free(line);
             break;
         }
-        //sniff for packets
-        if (strcmp(args[0], "sniff") == 0) 
-        {
-            (void)cmd_sniff(n, args);   // returns when done
+
+        if (strcmp(args[0], "sniff") == 0) {
+            (void)cmd_sniff(n, args);
             free(line);
             continue;
         }
-        //launch
-        if (strcmp(args[0], "launch") == 0) 
-        {
+
+        if (strcmp(args[0], "launch") == 0) {
             const char *url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-            printf(G "LAUNCHPAD: " RST "\n");
-            printf("\033]8;;%s\a%s\033]8;;\a\n", url, "click here to see more information on Twin Terminal");
-
+            printf(G "LAUNCHPAD:" RST " \033]8;;%s\a%s\033]8;;\a\n",
+                   url, "click here to see more information on Twin Terminal");
             free(line);
             continue;
         }
 
+        if (strcmp(args[0], "morse") == 0) {
+            if (n == 1) {                      // no args, do nothing
+                free(line);
+                continue;
+            }
+        int decode = 0;
+        int start = 1;
+            if (strcmp(args[1], "-d") == 0 || strcmp(args[1], "--decode") == 0) {
+                decode = 1;
+                start = 2;
+                if (n <= start) {              // "morse -d" without tokens → do nothing
+                    free(line);
+                    continue;
+                }
+            }
+            if (decode)  morse_decode_tokens(n, args, start);
+            else         morse_encode_args(n, args, start);
+
+            free(line);
+            continue;
+        }
+        // external command
         pid_t pid = fork();
-        if (pid == 0) 
-        {
-            execvp(args[0], args);            // returns only on error
+        if (pid == 0) {
+            execvp(args[0], args);
             perror(RED "OOPS>>" RST);
             _exit(127);
-        } 
-        else if (pid < 0) 
-        {
+        } else if (pid < 0) {
             perror(RED "fork" RST);
-        } 
-        else 
-        {
+        } else {
             int status = 0;
             if (waitpid(pid, &status, 0) == -1)
                 perror(RED "waitpid" RST);
         }
+
         free(line);
     }
-    
-    return 0;
+
+#ifdef TWIN_HAVE_READLINE
+    twin_history_save();
+#endif
+
+    return EXIT_SUCCESS;
 }
