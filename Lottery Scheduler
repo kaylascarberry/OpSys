@@ -1,0 +1,177 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+// ------------------------------------
+// Simple Lottery Scheduler Simulation
+// ------------------------------------
+// Features:
+// - Linked list of processes
+// - Random ticket selection shown each round
+// - Each quantum (time slice) = one scheduling cycle
+// - Winner loses 1 ticket (priority decreases)
+// - Runs until all processes finish
+// ------------------------------------
+
+typedef struct Process {
+    int pid;
+    int tickets;
+    int work;
+    struct Process* next;
+} Process;
+
+typedef struct {
+    Process* head;
+    int totalTickets;
+    int count;
+} RunQueue;
+
+// ------------------------------------
+// Helper functions
+// ------------------------------------
+Process* create_process(int pid, int tickets, int work) {
+    Process* p = (Process*)malloc(sizeof(Process));
+    p->pid = pid;
+    p->tickets = tickets;
+    p->work = work;
+    p->next = NULL;
+    return p;
+}
+
+void add_process(RunQueue* rq, Process* p) {
+    if (!rq->head)
+        rq->head = p;
+    else {
+        Process* cur = rq->head;
+        while (cur->next)
+            cur = cur->next;
+        cur->next = p;
+    }
+    rq->totalTickets += p->tickets;
+    rq->count++;
+}
+
+void remove_process(RunQueue* rq, Process* prev, Process* target) {
+    if (!target) return;
+    if (prev)
+        prev->next = target->next;
+    else
+        rq->head = target->next;
+    rq->totalTickets -= target->tickets;
+    rq->count--;
+    free(target);
+}
+
+void print_queue(RunQueue* rq) {
+    printf("\n--- Current Queue ---\n");
+    printf("PID\tTickets\tWork Left\n");
+    printf("----------------------\n");
+    Process* cur = rq->head;
+    while (cur) {
+        printf("P%d\t%d\t%d\n", cur->pid, cur->tickets, cur->work);
+        cur = cur->next;
+    }
+    printf("Total tickets: %d | Processes: %d\n", rq->totalTickets, rq->count);
+    printf("----------------------\n");
+}
+
+// ------------------------------------
+// Lottery scheduling logic
+// ------------------------------------
+Process* pick_winner(RunQueue* rq, int* drawn_ticket) {
+    if (rq->totalTickets <= 0) return NULL;
+
+    int r = rand() % rq->totalTickets + 1; // random ticket [1, total]
+    if (drawn_ticket) *drawn_ticket = r;
+
+    int cumulative = 0;
+    Process* cur = rq->head;
+    while (cur) {
+        cumulative += cur->tickets;
+        if (cumulative >= r)
+            return cur;
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+void run_quantum(RunQueue* rq, int quantum, int step) {
+    if (rq->count == 0) {
+        printf("No processes left to run.\n");
+        return;
+    }
+
+    int ticket_drawn = -1;
+    Process* winner = pick_winner(rq, &ticket_drawn);
+    if (!winner) {
+        printf("No winner (no tickets left)\n");
+        return;
+    }
+
+    printf("\n-- Quantum %d --\n", step);
+    printf("🎟️  Random Ticket Drawn: %d (out of %d)\n", ticket_drawn, rq->totalTickets);
+    printf("🎯 Winner: Process %d (Tickets=%d, Work=%d)\n",
+           winner->pid, winner->tickets, winner->work);
+
+    // Simulate doing one "quantum" of work
+    if (winner->work > quantum)
+        winner->work -= quantum;
+    else
+        winner->work = 0;
+
+    // Decrease ticket count (priority decay)
+    if (winner->tickets > 0) {
+        winner->tickets -= 1;
+        rq->totalTickets -= 1;
+    }
+
+    // If done, remove process
+    if (winner->work <= 0 || winner->tickets <= 0) {
+        Process* prev = NULL;
+        Process* cur = rq->head;
+        while (cur && cur != winner) {
+            prev = cur;
+            cur = cur->next;
+        }
+        printf("✅ Process %d finished or ran out of tickets. Removing from queue.\n", winner->pid);
+        remove_process(rq, prev, winner);
+    }
+}
+
+// ------------------------------------
+// Main simulation
+// ------------------------------------
+int main(void) {
+    srand((unsigned)time(NULL));
+
+    RunQueue rq = {0};
+
+    int n;
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; ++i) {
+        int tickets, work;
+        printf("Process %d - number of tickets: ", i + 1);
+        scanf("%d", &tickets);
+        printf("Process %d - work units: ", i + 1);
+        scanf("%d", &work);
+        add_process(&rq, create_process(i + 1, tickets, work));
+    }
+
+    int quantum;
+    printf("\nEnter quantum size (units of work per turn): ");
+    scanf("%d", &quantum);
+
+    printf("\n=== Starting Lottery Scheduler ===\n");
+    print_queue(&rq);
+
+    int step = 1;
+    while (rq.count > 0) {
+        run_quantum(&rq, quantum, step++);
+        print_queue(&rq);
+    }
+
+    printf("\n🎉 All processes completed!\n");
+    return 0;
+}
