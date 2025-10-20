@@ -17,6 +17,7 @@ int next_pid = 1;
 typedef struct _Process {
     int pid;        //name of the process P[n]
     int tickets;    //number of tickets
+    int init_tickets;   //originally declared # of tickets so they can be re-issued
     int size;       //work remaining, how long the process runs for
     struct _Process * next; // <structure name> * <variable name>
 } Process;
@@ -45,6 +46,7 @@ static Process* create_process(int tickets, int size) {
     if(!p) return NULL;
     p->pid = next_pid++;    //global variable
     p->tickets = tickets;
+    p->init_tickets = tickets;  //remember the initial user declared amount of tickets
     p->size = size;
     p->next = NULL;
     return p;
@@ -54,7 +56,6 @@ static Process* create_process(int tickets, int size) {
 static int enqueue(Queue* q, Process* p) {
     //enqueue is declared as int so if -1 occurs, we know that it failed
     if (!q || !p) return -1;
-
     if (!q->first) {
         q->first = p;   //know that q = 0
     } else {
@@ -70,7 +71,7 @@ static int enqueue(Queue* q, Process* p) {
 
 //remove from queue and return a process
 static Process* dequeue(Queue* q) {
-    if(q == NULL) return -1;
+    //if(q == NULL) return -1;
     if (!q || !q->first) return NULL;   //there's at least 1 element in the q
     Process* p = q->first;              //create a local variable p to hold the result
     q->first = p->next;                 //make the first element the one next to the first
@@ -118,6 +119,15 @@ static Process* pick_winner(const Queue* q, int* drawn) {
     return NULL;
 }
 
+static void reissue_all_tickets(Queue* q) {
+    int total = 0;
+    for (Process* p = q->first; p; p = p->next) {
+        p->tickets = p->init_tickets;  // restore declared amount
+        total += p->tickets;
+    }
+    q->totalTickets = total;
+}
+
 //Lottery Scheduler
 static void lottery(Queue* rq, int round) {
     if (rq->count == 0 || rq->totalTickets <= 0) return;
@@ -130,28 +140,38 @@ static void lottery(Queue* rq, int round) {
     printf("Drawn ticket: %d (of %d)\n", ticket, rq->totalTickets);
     printf("Winner: P%d (tickets=%d, size=%d)\n", w->pid, w->tickets, w->size);
 
-    // Run winner for fixed work-per-turn
-    if (w->size > UNITTIME
-) w->size -= UNITTIME
-; else w->size = 0;
+    /* Run winner for one unit */
+    if (w->size > UNITTIME) w->size -= UNITTIME;
+    else                    w->size = 0;
 
-    // Priority decay: winner loses one ticket
+    /* Ticket decay for the winner */
     if (w->tickets > 0) { w->tickets--; rq->totalTickets--; }
 
-    // Remove if finished or out of tickets
-    if (w->size == 0 || w->tickets == 0) {
-        printf("Removing P%d (%s).\n", w->pid,
-               (w->size == 0) ? "finished work" : "no tickets left");
+    /* 1) If finished, remove it. */
+    if (w->size == 0) {
+        printf("Removing P%d (finished work).\n", w->pid);
         remove_and_free(rq, w);
+        return;
     }
+
+    /* 2) If out of tickets but still has work, start a new epoch (reissue). */
+    if (w->tickets == 0) {
+        printf("P%d used all tickets but still has work; reissuing tickets to all processes.\n", w->pid);
+        reissue_all_tickets(rq);
+        /* Do NOT remove the process. It stays in the queue with restored tickets. */
+        return;
+    }
+
+    /* 3) Otherwise, nothing else to do this round. */
 }
+
 
 // Start of main function, this is where the CPU starts working
 //main stack frame. This is where the return value is declared and reserved as int
-int main(void) {    
-    srand((unsigned)time(NULL)); //
+int main(void) {
+    srand((unsigned)time(NULL));
 
-    Queue q = {0};  //create new Q
+    Queue q = {0};
     int n;
     printf("Enter Number of processes: ");
     if (scanf("%d", &n) != 1 || n <= 0) { fprintf(stderr, "Invalid.\n"); return 1; }
@@ -168,7 +188,7 @@ int main(void) {
         }
     }
 
-    printf("\n=== Lottery start (UNITTIME     = %d) ===\n", UNITTIME);
+    printf("\n=== Lottery start (UNITTIME = %d) ===\n", UNITTIME);
     print_queue(&q);
 
     for (int round = 1; q.count > 0; ++round) {
