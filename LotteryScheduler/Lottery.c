@@ -81,16 +81,16 @@ static Process* dequeue(Queue* q) {
     return p;                           //return the result
 }
 
-/* Remove target from queue and free it (updates count/totalTickets). */
-//NEED HELP COMMENTING THIS
+//Remove target from queue and free it (updates count/totalTickets). 
 static void remove_and_free(Queue* q, Process* target) {
-    if (!q || !target) return;
+    if (!q || !target) return;  //return nothing if there is no Q or process
+    //point to a pointer (pointing to the current node)
     for (Process** pp = &q->first; *pp; pp = &(*pp)->next){
         if (*pp == target){
-            q->totalTickets -= target->tickets;
-            q->count--;
-            *pp = target->next;
-            free(target);
+            q->totalTickets -= target->tickets; //keep the ticket total
+            q->count--;         //decrement the process count
+            *pp = target->next; //unlink the target
+            free(target);       //free the memory
             return;
         }
     }
