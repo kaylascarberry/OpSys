@@ -69,17 +69,17 @@ static int enqueue(Queue* q, Process* p) {
     return 0;                             
 }
 
-//removes the first process from queue and return a process
-static Process* dequeue(Queue* q) {
-    //if(q == NULL) return -1;
-    if (!q || !q->first) return NULL;   //there's at least 1 element in the q
-    Process* p = q->first;              //create a local variable p to hold the result
-    q->first = p->next;                 //make the first element the one next to the first
-    p->next = NULL;                     //show that there is nothing else after in the q
-    q->count--;                         //decrement the count
-    q->totalTickets -= p->tickets;      //decrement the number of lottery tickets after used
-    return p;                           //return the result
-}
+// //removes the first process from queue and return a process
+// static Process* dequeue(Queue* q) {
+//     //if(q == NULL) return -1;
+//     if (!q || !q->first) return NULL;   //there's at least 1 element in the q
+//     Process* p = q->first;              //create a local variable p to hold the result
+//     q->first = p->next;                 //make the first element the one next to the first
+//     p->next = NULL;                     //show that there is nothing else after in the q
+//     q->count--;                         //decrement the count
+//     q->totalTickets -= p->tickets;      //decrement the number of lottery tickets after used
+//     return p;                           //return the result
+// }
 
 //Remove any finished target process from queue and free it (updates count/totalTickets). 
 static void remove_and_free(Queue* q, Process* target) {
