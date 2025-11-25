@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "name": "KernelModule",
+      "intelliSenseMode": "linux-gcc-arm64",
+      "compilerPath": "/usr/bin/gcc",
+      "defines": [
+        "__KERNEL__",
+        "MODULE"
+      ],
+      "includePath": [
+        "${workspaceFolder}",
+        "/lib/modules/6.8.0-1040-raspi/build/include",
+        "/lib/modules/6.8.0-1040-raspi/build/include/generated",
+        "/lib/modules/6.8.0-1040-raspi/build/include/uapi",
+        "/lib/modules/6.8.0-1040-raspi/build/include/generated/uapi",
+        "/lib/modules/6.8.0-1040-raspi/build/arch/arm64/include",
+        "/lib/modules/6.8.0-1040-raspi/build/arch/arm64/include/generated",
+        "/lib/modules/6.8.0-1040-raspi/build/arch/arm64/include/uapi",
+        "/lib/modules/6.8.0-1040-raspi/build/arch/arm64/include/generated/uapi"
+      ],
+      "browse": {
+        "path": [
+          "/lib/modules/6.8.0-1040-raspi/build"
+        ]
+      }
+    }
+  ],
+  "version": 4
+}

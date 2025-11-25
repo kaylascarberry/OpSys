@@ -1,0 +1,1 @@
+savedcmd_/home/kaylas/cpp/kernel/test_mod00.ko := ld -r -EL  -maarch64elf -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /home/kaylas/cpp/kernel/test_mod00.ko /home/kaylas/cpp/kernel/test_mod00.o /home/kaylas/cpp/kernel/test_mod00.mod.o

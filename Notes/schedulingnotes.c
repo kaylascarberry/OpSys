@@ -6,6 +6,9 @@ where has structure used before?
     data structures
     what did we build in data structures?
         linked lists, data queues
+
+The nicer you are, the less you get
+
 fifo: first in first out
     
 sjf: shortest jump first

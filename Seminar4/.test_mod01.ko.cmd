@@ -1,0 +1,1 @@
+savedcmd_/home/kaylas/cpp/Seminar4/test_mod01.ko := ld -r -EL  -maarch64elf -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /home/kaylas/cpp/Seminar4/test_mod01.ko /home/kaylas/cpp/Seminar4/test_mod01.o /home/kaylas/cpp/Seminar4/test_mod01.mod.o
