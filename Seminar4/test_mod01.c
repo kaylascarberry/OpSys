@@ -3,10 +3,15 @@
 #include <linux/kern_levels.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
+#include <linux/ioctl.h>        //add for ioctl
 
 MODULE_LICENSE("GPL");
 
-#define ECE_BUF_SIZE 256
+#define ECE_BUF_SIZE    256
+#define ECE_IOC_MAGIC   'E'     //ECE driver magic ASCII number 0x00004500
+#define ECE_IOCTL_RST_R _IO(ECE_IOC_MAGIC, 0)   //reset read pointer
+#define ECE_IOCTL_RST_W _IO(ECE_IOC_MAGIC, 1)   //reset write pointer 
+
 
 static char ece_buffer[ECE_BUF_SIZE];
 int isReg;
@@ -19,13 +24,13 @@ int ece_init(void);
 void ece_end(void);
 static ssize_t ece_write(struct file*, const char*, size_t, loff_t*);
 static ssize_t ece_read(struct file*, char*, size_t, loff_t*);
-static int ece_open(struct inode*, struct file *file);
+static long ece_ioctl(struct file*, unsigned int cmd, unsigned long arg);   //prototype the ioctl
 
 static struct file_operations ece_fops =
 {
-    //.open = ece_open,
     .read = ece_read,
     .write = ece_write,
+    .unlocked_ioctl = ece_ioctl,    //updated ece_fops with ioctl
 };
 
 int ece_init(void)
@@ -96,12 +101,22 @@ static ssize_t ece_read(struct file *fp, char *buf, size_t count, loff_t *offset
     return count;
 }
 
-/*
-static int ece_open(struct inode *inode, struct file *file)
+static long ece_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
-    ece_offset_w = 0;
-    ece_offset_r = 0;
-    ece_size = 0;
-    return 0;
+    switch (cmd){
+        case ECE_IOCTL_RST_R:
+            printk(KERN_INFO " ECE4310: RESET READ POINTER TO 0\n");
+
+            ece_offset_r = 0;
+
+            return 0;
+        case ECE_IOCTL_RST_W:
+            printk(KERN_INFO " ECE4310: RESET WRITE POINTER TO 0\n");
+            ece_offset_w = 0;
+
+            return 0;
+        default:
+            return -ENOTTY; //typical ioctl return for Error: No TTY
+    }    
+
 }
-    */
